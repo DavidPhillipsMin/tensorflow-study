@@ -22,7 +22,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_string('data_dir', '/tmp/data/', 'Directory for storing data')
 flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
-flags.DEFINE_float('dropout_rate', 1, 'Dropout rate')
+flags.DEFINE_float('dropout_rate', 0.9, 'Dropout rate')
 flags.DEFINE_integer('training_repeat', 15, 'Training repeat count')
 flags.DEFINE_integer('batch_size', 100, 'Batch size per loop')
 
@@ -38,14 +38,33 @@ tf.histogram_summary("label", y_)
 
 dropout_rate = tf.placeholder(tf.float32)
 
+
+xx = tf.reshape(x, [None, 28, 28, 1][0])
+
+cw0 = tf.Variable(tf.random_normal([3, 3, 1, 32], stddev=0.01))
+cL0r = tf.nn.relu(tf.nn.conv2d(xx, cw0, strides=[1, 1, 1, 1], padding='SAME')) # strides = [1, strideX, strideY, 1], padding=SAME or VALID
+cL0p = tf.nn.max_pool(cL0r, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+cL0 = tf.nn.dropout(cL0p, dropout_rate)
+
+cw1 = tf.Variable(tf.random_normal([3, 3, 32, 64], stddev=0.01))
+cL1r = tf.nn.relu(tf.nn.conv2d(cL0, cw1, strides=[1, 1, 1, 1], padding='SAME')) # strides = [1, strideX, strideY, 1], padding=SAME or VALID
+cL1p = tf.nn.max_pool(cL1r, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+cL1 = tf.nn.dropout(cL1p, dropout_rate)
+
+cw2 = tf.Variable(tf.random_normal([3, 3, 64, 128], stddev=0.01))
+cL2r = tf.nn.relu(tf.nn.conv2d(cL1, cw2, strides=[1, 1, 1, 1], padding='SAME')) # strides = [1, strideX, strideY, 1], padding=SAME or VALID
+cL2p = tf.nn.max_pool(cL2r, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+cL2 = tf.nn.dropout(cL2p, dropout_rate)
+
 # Create the model
 with tf.name_scope("input_layer"):
-    w0 = tf.get_variable("input_layer_weight", shape=[784, 256], initializer=xavier_init(784, 256))
+    w0 = tf.get_variable("input_layer_weight", shape=[4*4*128, 256], initializer=xavier_init(4*4*128, 256))
     #tf.histogram_summary("input_layer_weight", w0)    
     b0 = tf.Variable(tf.random_normal([256]))
     tf.histogram_summary("input_layer_bias", b0)
 
-    _L0 = tf.nn.relu(tf.matmul(x, w0) + b0)
+    cL2 = tf.reshape(cL2, [None, w0.get_shape().as_list()[0]])
+    _L0 = tf.nn.relu(tf.matmul(cL2, w0) + b0)
     L0 = tf.nn.dropout(_L0, dropout_rate)
 
 with tf.name_scope("hidden_layer"):
@@ -92,8 +111,9 @@ with tf.name_scope("activation"):
 
 with tf.name_scope("train"):
     # Define loss and optimizer
-    train_step = tf.train.AdamOptimizer(FLAGS.learning_rate).minimize(loss)
-
+    # AdadeltaOptimizer, AdagradOptimizer, MomentumOptimizer, FtrlOptimizer ...
+    # train_step = tf.train.AdamOptimizer(FLAGS.learning_rate).minimize(loss)
+    train_step = tf.train.RMSPropOptimizer(FLAGS.learning_rate, 0.9).minimize(loss)
 
 merged = tf.merge_all_summaries()
 writer = tf.train.SummaryWriter("/tmp/mnist_logs", sess.graph)
@@ -114,8 +134,8 @@ for repeats in range(FLAGS.training_repeat):
         avg_loss += loss.eval({x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate}) / total_batch
     
     print("Epoch:", "{:04d}".format(repeats+1), "loss=", "{:.9f}".format(avg_loss))        
-    summary = sess.run(merged, feed_dict={x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate})
-    writer.add_summary(summary, repeats)
+    #summary = sess.run(merged, feed_dict={x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate})
+    #writer.add_summary(summary, repeats)
 
     
 # Test trained model
