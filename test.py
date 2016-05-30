@@ -69,17 +69,23 @@ tmp2 =   [
 a = np.array(tmp)
 b = np.array(tmp2)
 
+#print(np.reshape(a, [-1, 1, 7]))
+#sys.exit(-1)
+
+
 c = fillEmptySpace(a, 30)
 d = fillEmptySpace(b, 30)
 
+print(np.reshape(c, [1, 30, 6]))
+print(c)
+sys.exit(-1)
 m = np.reshape(np.array([]), [-1, 30, 6])
 m = np.append(m, np.reshape(c, [1, 30, 6]), axis=0)
 m = np.append(m, np.reshape(d, [1, 30, 6]), axis=0)
 print(m)
 
-
 str = "201603240900"
-str2 = "201603231500"
+str2 = "201603230900"
 date = datetime.datetime.strptime(str, "%Y%m%d%H%M")
 date2 = datetime.datetime.strptime(str2, "%Y%m%d%H%M")
 now = datetime.datetime.now()
@@ -87,6 +93,11 @@ nowstr = now.strftime("%Y%m%d%H%M")
 print(date)
 print(now)
 diff = date-date2
+print(diff)
+print(diff.days)
 print(diff.seconds)
 print(nowstr)
 print(now - datetime.timedelta(minutes=15))
+
+tmp = np.darray(["1", 2, 3])
+print(tmp)

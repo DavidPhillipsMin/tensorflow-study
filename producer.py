@@ -2,74 +2,89 @@
 
 import os
 import sys
-import math
 import datetime
 import time
 import numpy as np
+from multiprocessing import Process, JoinableQueue
 
 # defines
-CHART_PATH = "./charts/"
+CHART_PATH = "results/"
+LABEL_PATH = "labels/"
 
-#np.set_printoptions(threshold=np.nan, linewidth=200)
+dataQueue = JoinableQueue()
 
+np.set_printoptions(threshold=100, linewidth=200)
 
-def getDate(date_str):
-    return datetime.datetime.strptime(date_str[0:8], "%Y%m%d")
+def makeLabel(filename):
+    chart = np.load(CHART_PATH + filename)
+    #print(chart)
 
-def getMinute(date_str):
-    date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%S")
-    return (date.hour-9)*60 + date.minute 
-
-def fillEmptySpace(chart, wannaDays):
-    emptySet = [[0, 0, 0, 0, 0, 0, 0] for row in range(361)]
-
-    date = chart[:,2].astype(str)
-    price = np.abs(chart[:,[0,1,3,4,5]].astype(int))
-
-    result = np.reshape(np.array([], dtype=int), [-1, 7])
+    template = [0] * 64
+    result = np.reshape(np.array([], dtype=object), [-1, 64])
 
     i = 0
-    Date = getDate(date[i])
-    diffDate = Date - getDate(date[i])
-    
-    for repeatDate in range(wannaDays):
-        if diffDate.days > 0 or i == len(chart):
-            #if Date.weekday() >= 5: result = np.append(result, [[0, 0, 0, 0, 0, 0, 0]], axis=0) # weekend
-            #else: result = np.append(result, emptySet, axis=0)
-            if Date.weekday() < 5: result = np.append(result, emptySet, axis=0) # workingday
+    for repeat in range(7*12):
+        if chart[i+360][0] == chart[i][0] and chart[i+360][1] == 0 and chart[i][1] == 360:
+            startPrice = float(chart[i+360][2])
+            endPrice = float(chart[i][2])
+
+            if startPrice > 0:
+                ratio = (endPrice - startPrice) / startPrice * 100
+            else: 
+                ratio = 0
+
+            if ratio > 30: ratio = 30
+            if ratio < -30: ratio = -30
+            
+            template[0] = filename
+            template[1] = repeat
+            template[2] = ratio
+            template[int(ratio)+33] = 1
+            result = np.append(result, [template], axis = 0)
+            template[int(ratio)+33] = 0 # restore
         else:
-            day = int(Date.strftime("%Y%m%d"))
-            for Minute in reversed(range(361)):
-                if i < len(chart):
-                    while getMinute(date[i]) > 360 or getMinute(date[i]) < 0:
-                        i = i + 1 # skip
-                        if i == len(chart):
-                            result = np.append(result, [[0, 0, 0, 0, 0, 0, 0]], axis=0)
-                            break;
-                        else:
-                            diffDate = Date - getDate(date[i])
-                    if i == len(chart): continue
-                    
-                    if diffDate.days == 0 and getMinute(date[i]) == Minute: 
-                        result = np.append(result, [[day, Minute, price[i][0], price[i][1], price[i][2], price[i][3], price[i][4]]], axis=0)
-                        i = i + 1
-                    else:
-                        result = np.append(result, [[day, Minute, price[i][0], 0, 0, 0, 0]], axis=0)
+            break
+        i = i + 361
 
-                else:
-                    result = np.append(result, [[0, 0, 0, 0, 0, 0, 0]], axis=0)
-
-        Date = Date - datetime.timedelta(hours=24)
-        if i < len(chart): diffDate = Date - getDate(date[i])
-        
-    #print(len(chart), i, len(result))
     return result
 
+
+# Process task
+def singleProc(queue):
+    sum = [0]*61
+
+    while True:
+        filename = queue.get()
+        
+        labels = makeLabel(filename)
+        print(filename + " -> Done.")
+        #print(labels)
+        #print(labels[:,[0,15,16]])
+        #print
+        for row in labels[:,3:]:
+            sum = sum + row.astype(int)
+        #print(sum)
+
+        np.save(LABEL_PATH + filename[0:6] + "_label", labels)
+        
+        queue.task_done()
+
+
 def main():
+    # make process pool
+    for i in range(1):
+        p = Process(target=singleProc, args=(dataQueue,))
+        p.daemon = True
+        p.start()
+
     for root, dirs, files in os.walk(CHART_PATH):
         for file in files:
-            print(file)
-            fillEmptySpace(np.load(CHART_PATH+file), 182)
+            #print(file + " -> Pass task to process pool.")
+            dataQueue.put(file)
+            #dataQueue.put("005720.npy")
+
+    dataQueue.join()
+    #np.savez("finalCharts", **finalCharts)
 
 startTime = time.time()
 main()
