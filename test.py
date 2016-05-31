@@ -76,13 +76,11 @@ b = np.array(tmp2)
 c = fillEmptySpace(a, 30)
 d = fillEmptySpace(b, 30)
 
-print(np.reshape(c, [1, 30, 6]))
-print(c)
-sys.exit(-1)
 m = np.reshape(np.array([]), [-1, 30, 6])
 m = np.append(m, np.reshape(c, [1, 30, 6]), axis=0)
 m = np.append(m, np.reshape(d, [1, 30, 6]), axis=0)
 print(m)
+sys.exit(-1)
 
 str = "201603240900"
 str2 = "201603230900"

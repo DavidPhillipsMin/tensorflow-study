@@ -8,7 +8,7 @@ import numpy as np
 from multiprocessing import Process, JoinableQueue
 
 # defines
-CHART_PATH = "results/"
+CHART_PATH = "charts/"
 LABEL_PATH = "labels/"
 
 dataQueue = JoinableQueue()
@@ -20,10 +20,10 @@ def makeLabel(filename):
     #print(chart)
 
     template = [0] * 64
-    result = np.reshape(np.array([], dtype=object), [-1, 64])
+    result = np.array([], dtype=object).reshape(-1, 64)
 
     i = 0
-    for repeat in range(7*12):
+    for repeat in range((7*12)-(12*2)): #exclude weekend!
         if chart[i+360][0] == chart[i][0] and chart[i+360][1] == 0 and chart[i][1] == 360:
             startPrice = float(chart[i+360][2])
             endPrice = float(chart[i][2])
@@ -37,10 +37,10 @@ def makeLabel(filename):
             if ratio < -30: ratio = -30
             
             template[0] = filename
-            template[1] = repeat
+            template[1] = repeat+1
             template[2] = ratio
             template[int(ratio)+33] = 1
-            result = np.append(result, [template], axis = 0)
+            result = np.append(result, [template], axis=0)
             template[int(ratio)+33] = 0 # restore
         else:
             break
@@ -58,7 +58,7 @@ def singleProc(queue):
         
         labels = makeLabel(filename)
         print(filename + " -> Done.")
-        #print(labels)
+        print(labels)
         #print(labels[:,[0,15,16]])
         #print
         for row in labels[:,3:]:
@@ -70,7 +70,9 @@ def singleProc(queue):
         queue.task_done()
 
 
-def main():
+if __name__ == "__main__":
+    startTime = time.time()
+
     # make process pool
     for i in range(1):
         p = Process(target=singleProc, args=(dataQueue,))
@@ -86,6 +88,4 @@ def main():
     dataQueue.join()
     #np.savez("finalCharts", **finalCharts)
 
-startTime = time.time()
-main()
-print("Elapsed time: {:.6f}".format(time.time() - startTime))
+    print("Elapsed time: {:.6f}".format(time.time() - startTime))

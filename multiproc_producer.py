@@ -9,15 +9,14 @@ import numpy as np
 from multiprocessing import Process, JoinableQueue
 
 # defines
-CHART_PATH = "charts/"
+CHART_PATH = "tmp/"
 
 dataQueue = JoinableQueue()
 
-emptySet = [[0, 0, 0, 0, 0, 0] for row in reversed(range(361))]
-secondList = list(reversed(range(361)))
-emptySet = np.insert(emptySet, 1, secondList, axis=1)
+emptySet = [[0, 0, 0, 0, 0, 0] for row in range(361)]
+emptySet = np.insert(emptySet, 1, list(reversed(range(361))), axis=1)
 
-#np.set_printoptions(threshold=np.nan, linewidth=200)
+np.set_printoptions(threshold=np.nan, linewidth=200)
 
 def getDate(date_str):
     return datetime.datetime.strptime(date_str[0:8], "%Y%m%d")
@@ -31,19 +30,23 @@ def fillEmptySpace(chart, wannaDays):
     date = chart[:,2].astype(str)
     price = np.abs(chart[:,[0,1,3,4,5]].astype(int))
 
-    result = np.reshape(np.array([], dtype=int), [-1, 7])
+    result = np.array([], dtype=int).reshape(-1, 7)
 
     i = 0
     Date = getDate(date[i])
     diffDate = Date - getDate(date[i])
     
     for repeatDate in range(wannaDays):
+        day = int(Date.strftime("%Y%m%d"))
+
         if diffDate.days > 0 or i == len(chart):
             #if Date.weekday() >= 5: result = np.append(result, [[0, 0, 0, 0, 0, 0, 0]], axis=0) # weekend
             #else: result = np.append(result, emptySet, axis=0)
-            if Date.weekday() < 5: result = np.append(result, emptySet, axis=0) # workingday
+            if Date.weekday() < 5:
+                if i == len(chart): emptySet[:,0] = 0
+                else: emptySet[:,0] = day
+                result = np.append(result, emptySet, axis=0) # workingday
         else:
-            day = int(Date.strftime("%Y%m%d"))
             for Minute in reversed(range(361)):
                 if i < len(chart):
                     while getMinute(date[i]) > 360 or getMinute(date[i]) < 0:
@@ -80,7 +83,7 @@ def singleProc(queue):
         
         #print(result)
         
-        np.save("tmp/"+filename, result)
+        np.save("tmpChart/"+filename, result)
         
         queue.task_done()
 

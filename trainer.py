@@ -8,8 +8,11 @@ import sys
 
 # Import data
 from tensorflow.examples.tutorials.mnist import input_data
+import trainingset
 
 import tensorflow as tf
+
+sys.exit(-1)
 
 def xavier_init(n_inputs, n_outputs, uniform=True):
     # Xavier Glorot and Yoshua Bengio (2010)
