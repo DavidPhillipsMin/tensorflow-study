@@ -25,7 +25,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('data_dir', '/tmp/data/', 'Directory for storing data')
 flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
 flags.DEFINE_float('dropout_rate', 0.9, 'Dropout rate')
-flags.DEFINE_integer('training_repeat', 10, 'Training repeat count')
+flags.DEFINE_integer('training_repeat', 1, 'Training repeat count')
 flags.DEFINE_integer('batch_size', 100, 'Batch size per loop')
 
 mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
@@ -134,7 +134,11 @@ for repeats in range(FLAGS.training_repeat):
         train_step.run({x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size})
         # compute average loss
         #avg_loss += loss.eval({x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate}) / total_batch
-        if batch_set % 20 == 0: print("Epoch:", "{:04d}".format(repeats+1), "{:.2f}%".format(batch_set/total_batch*100.0))
+        if batch_set % 20 == 0:
+            print("Epoch:", "{:04d}".format(repeats+1), "{:.2f}%".format(batch_set/total_batch*100.0))
+            summary = sess.run(merged, feed_dict={x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size})
+            writer.add_summary(summary, batch_set)
+
     
     #print("Epoch:", "{:04d}".format(repeats+1), "loss=", "{:.9f}".format(avg_loss))
     #summary = sess.run(merged, feed_dict={x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate})
