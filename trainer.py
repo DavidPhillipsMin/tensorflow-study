@@ -23,10 +23,12 @@ def xavier_init(n_inputs, n_outputs, uniform=True):
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
-flags.DEFINE_string('data_dir', '/tmp/data/', 'Directory for storing data')
+flags.DEFINE_string('data_dir', '/tmp/trainer_logs/', 'Directory for storing data')
+flags.DEFINE_string('save_dir', './save/', 'Directory for save variables')
+flags.DEFINE_string('save_filename', 'trained', 'Filename of trained variables')
 flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
 flags.DEFINE_float('dropout_rate', 0.9, 'Dropout rate')
-flags.DEFINE_integer('training_repeat', 1000, 'Training repeat count')
+flags.DEFINE_integer('training_repeat', 50, 'Training repeat count')
 flags.DEFINE_integer('batch_size', 50, 'Batch size per loop')
 
 sess = tf.InteractiveSession()
@@ -134,46 +136,55 @@ def checkAccuracy():
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     print("accuracy= {:.9f}".format(accuracy.eval({chart: test_charts, ratio: test_labels, dropout_rate: 1, batch_set_size: 50})))
     print
+
+
+if __name__ == "__main__":
+    merged = tf.merge_all_summaries()
+    writer = tf.train.SummaryWriter(FLAGS.data_dir, sess.graph)
+
+    # Train
+    startTime = time.time()
+
+    # Add ops to save and restore all the variables.
+    saver = tf.train.Saver()
+    latest_save = tf.train.latest_checkpoint(FLAGS.save_dir)
+    if latest_save != None:
+        print("Load latest saved variables..")
+        saver.restore(sess, latest_save)
+    else:
+        tf.initialize_all_variables().run()
+
+    #ts.shuffle_batch_set()
+
+    np.set_printoptions(threshold=np.nan, linewidth=200)
+    #batch_charts, batch_labels = ts.next_batch(FLAGS.batch_size)
+    #print(batch_labels[:,30:])
+
+    # Test trained model
+    test_charts, test_labels = ts.next_test_batch(50)
+
+    total_batch = int(ts.num_set / FLAGS.batch_size)
+    for repeats in range(FLAGS.training_repeat):
+
+        avg_loss = 0.0
+
+        print("Epoch:", "{:04d} Training...".format(repeats+1))
+        for batch_set in range(total_batch):
+        #for batch_set in range(1):
+            batch_charts, batch_labels = ts.next_batch(FLAGS.batch_size, True)
+            train_step.run({chart: batch_charts, ratio: batch_labels, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size})
+            # compute average loss
+            avg_loss += loss.eval({chart: batch_charts, ratio: batch_labels, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size}) / total_batch
+            if batch_set % 10 == 0 and batch_set > 0: 
+                print("...{:.2f}%".format((batch_set+1)/total_batch*100.0))
+                summary = sess.run(merged, feed_dict={chart: batch_charts, ratio: batch_labels, dropout_rate: 1, batch_set_size: FLAGS.batch_size})
+                writer.add_summary(summary, repeats*total_batch+batch_set)
     
-merged = tf.merge_all_summaries()
-writer = tf.train.SummaryWriter("/tmp/trainer_logs", sess.graph)
+        print("loss=", "{:.9f}".format(avg_loss))
+        saver.save(sess, FLAGS.save_dir+FLAGS.save_filename)
+        #checkAccuracy()
+        #summary = sess.run(merged, feed_dict={x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate})
+        #writer.add_summary(summary, repeats)
 
-# Train
-startTime = time.time()
-
-tf.initialize_all_variables().run()
-
-ts.shuffle_batch_set()
-
-np.set_printoptions(threshold=np.nan, linewidth=200)
-#batch_charts, batch_labels = ts.next_batch(FLAGS.batch_size)
-#print(batch_labels[:,30:])
-
-# Test trained model
-test_charts, test_labels = ts.next_test_batch(50)
-
-total_batch = int(ts.num_set / FLAGS.batch_size)
-for repeats in range(FLAGS.training_repeat):
-
-    avg_loss = 0.0
-
-    print("Epoch:", "{:04d} Training...".format(repeats+1))
-    #for batch_set in range(total_batch):
-    for batch_set in range(1):
-        batch_charts, batch_labels = ts.next_batch(FLAGS.batch_size, True)
-        train_step.run({chart: batch_charts, ratio: batch_labels, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size})
-        # compute average loss
-        avg_loss += loss.eval({chart: batch_charts, ratio: batch_labels, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size}) / 1 #total_batch
-        if batch_set % 10 == 0 and batch_set > 2: 
-            print("...{:.2f}%".format((batch_set+1)/total_batch*100.0))
-            summary = sess.run(merged, feed_dict={chart: batch_charts, ratio: batch_labels, dropout_rate: FLAGS.dropout_rate, batch_set_size: FLAGS.batch_size})
-            writer.add_summary(summary, repeats*5+batch_set)
-    
-    print("loss=", "{:.9f}".format(avg_loss))
-    #checkAccuracy()
-    #summary = sess.run(merged, feed_dict={x: batch_xs, y_: batch_ys, dropout_rate: FLAGS.dropout_rate})
-    #writer.add_summary(summary, repeats)
-
-checkAccuracy()
-
-print("Elapsed time: {:.6f}".format(time.time() - startTime))
+    checkAccuracy()
+    print("Elapsed time: {:.6f}".format(time.time() - startTime))

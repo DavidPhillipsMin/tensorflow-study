@@ -78,14 +78,18 @@ def shuffle_batch_set():
 next_batch.counter = 0
 next_test_batch.counter = 0
 
-all_labels = labels()
-num_set = int(len(all_labels) * 0.8)
-num_test_set = len(all_labels) - num_set
+#all_labels = labels()
+#num_set = int(len(all_labels) * 0.8)
+#num_test_set = len(all_labels) - num_set
 
-next_batch.labels = all_labels[:num_set]
-next_test_batch.labels = all_labels[num_set:]
+#next_batch.labels = all_labels[:num_set]
+#next_test_batch.labels = all_labels[num_set:]
 
-num_set = 200
+next_batch.labels = np.load(LABEL_PATH + 'trainingset.npy')
+next_test_batch.labels = np.load(LABEL_PATH + 'testset.npy')
+
+num_set = len(next_batch.labels)
+num_test_set = len(next_test_batch.labels)
 
 #np.set_printoptions(threshold=np.nan, linewidth=200)
 if __name__ == "__main__":
